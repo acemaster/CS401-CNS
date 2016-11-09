@@ -1,8 +1,8 @@
 #include <unistd.h>
+#include <errno.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <errno.h>
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
@@ -10,7 +10,7 @@
 #include <stdio.h>
 
 
-int MAX_KEYS = 2;
+int MAX_KEYS = 1;
 struct public_key{
 	mpz_t e;
 	mpz_t n;
@@ -112,19 +112,6 @@ void printgmp(char *str,mpz_t p)
 	gmp_printf(": %Zd\n",p);
 }
 
-void encrpyt(mpz_t c,mpz_t message,mpz_t e, mpz_t n)
-{
-	mpz_init(c);
-	mpz_powm(c,message,e,n);
-	gmp_printf("\nCipher text: %Zd\n",c);
-}
-
-void decrpyt(mpz_t messagerec,mpz_t c,mpz_t d,mpz_t n)
-{
-	mpz_init(messagerec);
-	mpz_powm(messagerec,c,d,n);
-}
-
 void generatekey(mpz_t p,mpz_t q,mpz_t e,mpz_t d,mpz_t n)
 {
 	gmp_randinit_default(state);
@@ -168,7 +155,19 @@ void printpubpr()
 		gmp_printf("Private keys: [%Zd]\n",prt[i].d);
 	}
 }
+void encrpyt(mpz_t c,mpz_t message,mpz_t e, mpz_t n)
+{
+	mpz_init(c);
+	mpz_powm(c,message,e,n);
+	gmp_printf("\nCipher text: %Zd\n",c);
+}
 
+void decrpyt(mpz_t c,mpz_t d,mpz_t n)
+{
+	mpz_t messagerec;
+	mpz_init(messagerec);
+	mpz_powm(messagerec,c,d,n);
+}
 
 int main(int argc, char **argv)
 {
@@ -192,123 +191,32 @@ int main(int argc, char **argv)
 	printpubpr();
 	//Table generation complete
 	int listenfd=0,connfd=0;
-	struct sockaddr_in serv_addr,serv2_addr;
+	struct sockaddr_in serv_addr;
 	char sendbuff[1025];
 	char recvbuff[1025];
-	char recvserverbuff[1025];
 	time_t t;
 	listenfd = socket(AF_INET,SOCK_STREAM,0);
-	server2fd = socket(AF_INET,SOCK_STREAM,0);
 	memset(&serv_addr,'0',sizeof(serv_addr));
 	memset(sendbuff,'0',sizeof(sendbuff));
 	serv_addr.sin_family=AF_INET;
 	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	serv_addr.sin_port = htons(atoi(argv[2]));
-	serv2_addr.sin_family=AF_INET;
-	serv2_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	serv2_addr.sin_port = htons(atoi(argv[3]));
-	bind(listenfd,(struct sockaddr*)&serv_addr,sizeof(serv_addr));
-	connect(server2fd,(struct sockaddr*)&serv2_addr,sizeof(serv2_addr));
-	listen(listenfd,10);
+	connect(listenfd,(struct sockaddr*)&serv_addr,sizeof(serv_addr));
+	int n_recv;
+	long int message;
 	mpz_t message_set;
 	mpz_t c;
 	char *ciphertext;
-	int pid2 = fork();
-	if(pid == 0)
+	int pubid;
+	while(1)
 	{
-		while(1)
-		{
-			connfd = accept(listenfd,(struct sockaddr*)NULL,NULL);
-			printf("client recived\n");
-			int pid = fork();
-			if (pid == 0)
-			{
-				mpz_t messagerec,messagerec_dec;
-				memset(recvbuff,'0',sizeof(recvbuff));
-				while(read(connfd,recvbuff,sizeof(recvbuff))>0)
-				{
-					printf("%s recieved\n",recvbuff);
-					char publicid[10];
-					char message[10];
-					int i=0;
-					for(i=0;recvbuff[i]!='\0';i++)
-					{
-						if(recvbuff[i] == '|')
-						{
-							publicid[i]='\0';
-							break;
-						}
-						publicid[i]=recvbuff[i];
-					}
-					int k=0;
-					i=i+1;
-					for(;recvbuff[i]!='\0';i++)
-					{
-						if(recvbuff[i] == '|')
-						{
-							message[k++]='\0';
-							break;
-						}
-						message[k++]=recvbuff[i];
-					}
-					printf("message : %s",message);
-					printf("Public id: %s \nMessage: %s",publicid,message);
-					mpz_init(message_set);
-					mpz_init(c);
-					mpz_set_si(message_set,message);
-					gmp_printf("\nEncrpyting using %Zd and %Zd",pub[0].e,pub[0].n);
-					encrpyt(c,message_set,pub[0].e,pub[0].n);
-					ciphertext = mpz_get_str(NULL,10,c);
-					printf("ciphertext: %s\n",ciphertext);
-					snprintf(sendbuff,sizeof(sendbuff),"%d|%s|",pubid,ciphertext);
-					printf("Message sent: %s\n",sendbuff);
-					write(server2fd,sendbuff,sizeof(sendbuff));
-					
-				}
-			}
-			else
-			{
-				close(connfd);
-			}
-		}
-	}
-	else
-	{
-		memset(recvserverbuff,'0',sizeof(recvserverbuff));
-		while(read(server2fd,recvserverbuff,sizeof(recvserverbuff))>0)
-		{
-			printf("%s recieved\n",recvserverbuff);
-				char publicid[10];
-				char message[10];
-				int i=0;
-				for(i=0;recvserverbuff[i]!='\0';i++)
-				{
-					if(recvserverbuff[i] == '|')
-					{
-						publicid[i]='\0';
-						break;
-					}
-					publicid[i]=recvserverbuff[i];
-				}
-				int k=0;
-				i=i+1;
-				for(;recvserverbuff[i]!='\0';i++)
-				{
-					if(recvserverbuff[i] == '|')
-					{
-						message[k++]='\0';
-						break;
-					}
-					message[k++]=recvserverbuff[i];
-				}
-				printf("message : %s",message);
-				printf("Public id: %s \nMessage: %s",publicid,message);
-				mpz_init_set_str(messagerec,message,10);
-				gmp_printf("\nDecrpyting using %Zd and %Zd",prt[1].d,pub[1].n);
-				decrpyt(messagerec_dec,messagerec,prt[1].d,pub[1].n);
-				gmp_printf("\nMessage recieved: %Zd\n",messagerec_dec);
-
-		}
+		printf("Message: ");
+		scanf("%ld",&message);
+		printf("Public key: ");
+		scanf("%d",&pubid);
+		snprintf(recvbuff,sizeof(recvbuff),"%d|%ld|",pubid,message);
+		printf("Message sent: %s\n",recvbuff);
+		write(listenfd,recvbuff,sizeof(recvbuff));
 	}
 	return 0;
 }

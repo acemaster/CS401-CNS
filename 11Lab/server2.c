@@ -191,7 +191,7 @@ int main(int argc, char **argv)
 	}
 	printpubpr();
 	//Table generation complete
-	int listenfd=0,connfd=0;
+	int listenfd=0,connfd=0,server_Bfd=0,server2fd=0;
 	struct sockaddr_in serv_addr,serv2_addr;
 	char sendbuff[1025];
 	char recvbuff[1025];
@@ -209,12 +209,13 @@ int main(int argc, char **argv)
 	serv2_addr.sin_port = htons(atoi(argv[3]));
 	bind(listenfd,(struct sockaddr*)&serv_addr,sizeof(serv_addr));
 	connect(server2fd,(struct sockaddr*)&serv2_addr,sizeof(serv2_addr));
+	printf("=====>Connected to Server A\n");
 	listen(listenfd,10);
 	mpz_t message_set;
 	mpz_t c;
 	char *ciphertext;
 	int pid2 = fork();
-	if(pid == 0)
+	if(pid2 == 0)
 	{
 		while(1)
 		{
@@ -255,12 +256,12 @@ int main(int argc, char **argv)
 					printf("Public id: %s \nMessage: %s",publicid,message);
 					mpz_init(message_set);
 					mpz_init(c);
-					mpz_set_si(message_set,message);
-					gmp_printf("\nEncrpyting using %Zd and %Zd",pub[0].e,pub[0].n);
-					encrpyt(c,message_set,pub[0].e,pub[0].n);
+					mpz_set_str(message_set,message,10);
+					gmp_printf("\nEncrpyting using %Zd and %Zd",pub[1].e,pub[1].n);
+					encrpyt(c,message_set,pub[1].e,pub[1].n);
 					ciphertext = mpz_get_str(NULL,10,c);
 					printf("ciphertext: %s\n",ciphertext);
-					snprintf(sendbuff,sizeof(sendbuff),"%d|%s|",pubid,ciphertext);
+					snprintf(sendbuff,sizeof(sendbuff),"%s|%s|",publicid,ciphertext);
 					printf("Message sent: %s\n",sendbuff);
 					write(server2fd,sendbuff,sizeof(sendbuff));
 					
@@ -274,8 +275,11 @@ int main(int argc, char **argv)
 	}
 	else
 	{
+		printf("Waiting for read.................\n");
+		mpz_t messagerec,messagerec_dec;
+		mpz_inits(messagerec,messagerec_dec,NULL);
 		memset(recvserverbuff,'0',sizeof(recvserverbuff));
-		while(read(server2fd,recvserverbuff,sizeof(recvserverbuff))>0)
+		while(read(server_Bfd,recvserverbuff,sizeof(recvserverbuff))>0)
 		{
 			printf("%s recieved\n",recvserverbuff);
 				char publicid[10];
@@ -304,8 +308,8 @@ int main(int argc, char **argv)
 				printf("message : %s",message);
 				printf("Public id: %s \nMessage: %s",publicid,message);
 				mpz_init_set_str(messagerec,message,10);
-				gmp_printf("\nDecrpyting using %Zd and %Zd",prt[1].d,pub[1].n);
-				decrpyt(messagerec_dec,messagerec,prt[1].d,pub[1].n);
+				gmp_printf("\nDecrpyting using %Zd and %Zd",prt[0].d,pub[0].n);
+				decrpyt(messagerec_dec,messagerec,prt[0].d,pub[0].n);
 				gmp_printf("\nMessage recieved: %Zd\n",messagerec_dec);
 
 		}

@@ -8,6 +8,7 @@
 #include <time.h>
 #include <gmp.h>
 #include <stdio.h>
+#include <pthread.h>
 
 
 int MAX_KEYS = 2;
@@ -191,7 +192,7 @@ int main(int argc, char **argv)
 	}
 	printpubpr();
 	//Table generation complete
-	int listenfd=0,connfd=0;
+	int listenfd=0,connfd=0,server_Bfd=0,server2fd=0;
 	struct sockaddr_in serv_addr,serv2_addr;
 	char sendbuff[1025];
 	char recvbuff[1025];
@@ -208,13 +209,59 @@ int main(int argc, char **argv)
 	serv2_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	serv2_addr.sin_port = htons(atoi(argv[3]));
 	bind(listenfd,(struct sockaddr*)&serv_addr,sizeof(serv_addr));
-	connect(server2fd,(struct sockaddr*)&serv2_addr,sizeof(serv2_addr));
+	bind(server2fd,(struct sockaddr*)&serv2_addr,sizeof(serv2_addr));
 	listen(listenfd,10);
+	listen(server2fd,10);
+	server_Bfd = accept(server2fd,(struct sockaddr*)NULL,NULL);
+	printf("======>Connected to Server B\n");
 	mpz_t message_set;
 	mpz_t c;
+	int writecount=0;
 	char *ciphertext;
 	int pid2 = fork();
-	if(pid == 0)
+	if(pid2 == 0)
+	{
+		printf("Waiting for read.................\n");
+		mpz_t messagerec,messagerec_dec;
+		mpz_inits(messagerec,messagerec_dec,NULL);
+		memset(recvserverbuff,'0',sizeof(recvserverbuff));
+		while(read(server_Bfd,recvserverbuff,sizeof(recvserverbuff))>0)
+		{
+			printf("%s recieved\n",recvserverbuff);
+				char publicid[10];
+				char message[10];
+				int i=0;
+				for(i=0;recvserverbuff[i]!='\0';i++)
+				{
+					if(recvserverbuff[i] == '|')
+					{
+						publicid[i]='\0';
+						break;
+					}
+					publicid[i]=recvserverbuff[i];
+				}
+				int k=0;
+				i=i+1;
+				for(;recvserverbuff[i]!='\0';i++)
+				{
+					if(recvserverbuff[i] == '|')
+					{
+						message[k++]='\0';
+						break;
+					}
+					message[k++]=recvserverbuff[i];
+				}
+				printf("message : %s",message);
+				printf("Public id: %s \nMessage: %s",publicid,message);
+				mpz_init_set_str(messagerec,message,10);
+				gmp_printf("\nDecrpyting using %Zd and %Zd",prt[1].d,pub[1].n);
+				decrpyt(messagerec_dec,messagerec,prt[1].d,pub[1].n);
+				gmp_printf("\nMessage recieved: %Zd\n",messagerec_dec);
+
+		}
+
+	}
+	else
 	{
 		while(1)
 		{
@@ -255,15 +302,20 @@ int main(int argc, char **argv)
 					printf("Public id: %s \nMessage: %s",publicid,message);
 					mpz_init(message_set);
 					mpz_init(c);
-					mpz_set_si(message_set,message);
+					mpz_set_str(message_set,message,10);
 					gmp_printf("\nEncrpyting using %Zd and %Zd",pub[0].e,pub[0].n);
 					encrpyt(c,message_set,pub[0].e,pub[0].n);
 					ciphertext = mpz_get_str(NULL,10,c);
 					printf("ciphertext: %s\n",ciphertext);
-					snprintf(sendbuff,sizeof(sendbuff),"%d|%s|",pubid,ciphertext);
+					snprintf(sendbuff,sizeof(sendbuff),"%s|%s|",publicid,ciphertext);
 					printf("Message sent: %s\n",sendbuff);
-					write(server2fd,sendbuff,sizeof(sendbuff));
-					
+					printf("Writing to Server B........\n");
+					writecount=write(server_Bfd,sendbuff,sizeof(sendbuff));
+					printf("Wrote %d chars\n",writecount);
+					if(writecount >=0)
+						printf("Wrote %d chars\n",writecount);
+					else
+						printf("Error writing\n");
 				}
 			}
 			else
@@ -271,44 +323,7 @@ int main(int argc, char **argv)
 				close(connfd);
 			}
 		}
-	}
-	else
-	{
-		memset(recvserverbuff,'0',sizeof(recvserverbuff));
-		while(read(server2fd,recvserverbuff,sizeof(recvserverbuff))>0)
-		{
-			printf("%s recieved\n",recvserverbuff);
-				char publicid[10];
-				char message[10];
-				int i=0;
-				for(i=0;recvserverbuff[i]!='\0';i++)
-				{
-					if(recvserverbuff[i] == '|')
-					{
-						publicid[i]='\0';
-						break;
-					}
-					publicid[i]=recvserverbuff[i];
-				}
-				int k=0;
-				i=i+1;
-				for(;recvserverbuff[i]!='\0';i++)
-				{
-					if(recvserverbuff[i] == '|')
-					{
-						message[k++]='\0';
-						break;
-					}
-					message[k++]=recvserverbuff[i];
-				}
-				printf("message : %s",message);
-				printf("Public id: %s \nMessage: %s",publicid,message);
-				mpz_init_set_str(messagerec,message,10);
-				gmp_printf("\nDecrpyting using %Zd and %Zd",prt[1].d,pub[1].n);
-				decrpyt(messagerec_dec,messagerec,prt[1].d,pub[1].n);
-				gmp_printf("\nMessage recieved: %Zd\n",messagerec_dec);
-
-		}
+		
 	}
 	return 0;
 }
