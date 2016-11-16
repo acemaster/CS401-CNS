@@ -34,6 +34,7 @@ class Server:
 			inputready,outputready,exceptready = select.select(input,[],[])
 			for s in inputready:
 				if s == self.server:
+					self.masterServer.send_message("new_key")
 					c = Client(self.server.accept(),self.masterServer)
 					c.start()
 					self.threads.append(c)
