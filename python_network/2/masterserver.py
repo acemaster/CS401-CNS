@@ -80,7 +80,7 @@ class Client(threading.Thread):
 		running = 1
 		while running:
 			data = self.client.recv(self.size)
-			if data:
+			if data: 
 				print "Child Server data: " + data
 				send_client_id = (self.thread_count + 1)%2
 				self.threads[send_client_id].send_message(data)
