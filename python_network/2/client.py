@@ -8,14 +8,19 @@ class ClientRead(threading.Thread):
 		threading.Thread.__init__(self)
 		self.client = soc
 		self.size = 1024
+		self.key = 0
 
 	def run(self):
 		print "Starting read thread"
 		running = 1
+		flag = 1
 		while running:
 			data = self.client.recv(self.size)
 			if data:
 				print "Recieved server data: " + data
+				if data == 'sendkey':
+					self.client.send(str(self.key))
+
 			else:
 				self.client.close()
 				running = 0
@@ -27,10 +32,10 @@ port = int(sys.argv[1])              # Reserve a port for your service.
 
 s.connect((host, port))
 running = 1
-# cread = ClientRead(s)
-# cread.start()
 group = raw_input("Enter the group (A/B): ")
 s.send(group)
+cread = ClientRead(s)
+cread.start()
 while running:
 	message = raw_input("Enter the message: ")
 	if message == 'exit':

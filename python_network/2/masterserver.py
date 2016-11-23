@@ -3,6 +3,7 @@ import threading
 import select
 import sys
 import subprocess
+import cryptfunc
 
 def tobits(s):
     result = []
@@ -96,14 +97,14 @@ class Client(threading.Thread):
 if __name__=="__main__":
 	print "Starting master server"
 	print "Getting keys for groups"
-	output = subprocess.Popen(["./enc", "0","11","0"], stdout=subprocess.PIPE).communicate()[0]
+	output = cryptfunc.getkey(0)
 	group_creds={}
 	output_arr = output.split(":")
 	group_creds['A']={}
 	group_creds['A']['e']=output_arr[0]
 	group_creds['A']['n']=output_arr[1]
 	group_creds['A']['d']=output_arr[2]
-	output = subprocess.Popen(["./enc", "0","11","1"], stdout=subprocess.PIPE).communicate()[0]
+	output = cryptfunc.getkey(1)
 	output_arr = output.split(":")
 	group_creds['B']={}
 	group_creds['B']['e']=output_arr[0]
