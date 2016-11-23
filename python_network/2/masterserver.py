@@ -2,7 +2,22 @@ import socket
 import threading
 import select
 import sys
+import subprocess
 
+def tobits(s):
+    result = []
+    for c in s:
+        bits = bin(ord(c))[2:]
+        bits = '00000000'[len(bits):] + bits
+        result.extend([int(b) for b in bits])
+    return result
+
+def frombits(bits):
+    chars = []
+    for b in range(len(bits) / 8):
+        byte = bits[b*8:(b+1)*8]
+        chars.append(chr(int(''.join([str(bit) for bit in byte]), 2)))
+    return ''.join(chars)
 
 class Server:
 	"""docstring for Server"""
@@ -65,7 +80,7 @@ class Client(threading.Thread):
 		running = 1
 		while running:
 			data = self.client.recv(self.size)
-			if data:
+			if data: 
 				print "Child Server data: " + data
 				send_client_id = (self.thread_count + 1)%2
 				self.threads[send_client_id].send_message(data)
@@ -80,8 +95,23 @@ class Client(threading.Thread):
 
 if __name__=="__main__":
 	print "Starting master server"
-	s = Server(sys.argv[1])
-	s.run()
+	print "Getting keys for groups"
+	output = subprocess.Popen(["./enc", "0","11","0"], stdout=subprocess.PIPE).communicate()[0]
+	group_creds={}
+	output_arr = output.split(":")
+	group_creds['A']={}
+	group_creds['A']['e']=output_arr[0]
+	group_creds['A']['n']=output_arr[1]
+	group_creds['A']['d']=output_arr[2]
+	output = subprocess.Popen(["./enc", "0","11","1"], stdout=subprocess.PIPE).communicate()[0]
+	output_arr = output.split(":")
+	group_creds['B']={}
+	group_creds['B']['e']=output_arr[0]
+	group_creds['B']['n']=output_arr[1]
+	group_creds['B']['d']=output_arr[2]
+	print group_creds
+	# s = Server(sys.argv[1])
+	# s.run()
 
 
 		

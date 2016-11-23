@@ -27,8 +27,10 @@ port = int(sys.argv[1])              # Reserve a port for your service.
 
 s.connect((host, port))
 running = 1
-cread = ClientRead(s)
-cread.start()
+# cread = ClientRead(s)
+# cread.start()
+group = raw_input("Enter the group (A/B): ")
+s.send(group)
 while running:
 	message = raw_input("Enter the message: ")
 	if message == 'exit':
