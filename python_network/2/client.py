@@ -20,7 +20,12 @@ class ClientRead(threading.Thread):
 				print "Recieved server data: " + data
 				if data == 'sendkey':
 					self.client.send(str(self.key))
-
+				elif flag == 1:
+					arr = data.split(":")
+					if arr[0] == 'getkey':
+						self.key = int(arr[1])
+						flag = 0
+					
 			else:
 				self.client.close()
 				running = 0

@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 '''Secure Group Chat client Implementation
-
-  Author: Rajmani Arya
-  Date: 24th Oct 2016
 '''
 from Crypto import Random
 from Crypto.PublicKey import RSA
